@@ -168,7 +168,7 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h1 className="text-3xl font-bold text-neutral-900 mb-2">Dashboard</h1>
-                <p className="text-neutral-600">Welcome back! Here's your store overview.</p>
+                <p className="text-neutral-600">Welcome back! Here`s your store overview.</p>
               </div>
               <Link href="/admin/products/add">
                 <Button icon={<Plus size={18} />}>Add Product</Button>
