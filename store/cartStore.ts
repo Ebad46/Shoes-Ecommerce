@@ -1,6 +1,47 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { CartItem, Product, ProductVariant } from '@/types';
+
+interface ProductImage {
+  id: string;
+  product_id: string;
+  url: string;
+  alt: string;
+  position: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  brand: string;
+  base_price: number;
+  is_active: boolean;
+  category: string;
+  rating: number;
+  reviews_count: number;
+  images: ProductImage[];
+  created_at: string;
+  updated_at: string;
+}
+
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  sku: string;
+  size: string;
+  color: string;
+  price: number;
+  inventory_count: number;
+  is_available: boolean;
+}
+
+interface CartItem {
+  id: string;
+  product: Product;
+  variant: ProductVariant;
+  quantity: number;
+}
 
 interface CartStore {
   items: CartItem[];
@@ -8,69 +49,64 @@ interface CartStore {
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
-  getTotalItems: () => number;
-  getTotalPrice: () => number;
+  getItemCount: () => number;
   getSubtotal: () => number;
   getShipping: () => number;
   getTax: () => number;
+  getTotalPrice: () => number;
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      
+
       addItem: (product, variant, quantity = 1) => {
-        set((state) => {
-          const existingItem = state.items.find(
-            (item) => item.variant.id === variant.id
-          );
+        const items = get().items;
+        const existingItem = items.find(
+          (item) => item.product.id === product.id && item.variant.id === variant.id
+        );
 
-          if (existingItem) {
-            return {
-              items: state.items.map((item) =>
-                item.variant.id === variant.id
-                  ? { ...item, quantity: item.quantity + quantity }
-                  : item
-              ),
-            };
-          }
-
+        if (existingItem) {
+          set({
+            items: items.map((item) =>
+              item.id === existingItem.id
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            ),
+          });
+        } else {
           const newItem: CartItem = {
             id: `${product.id}-${variant.id}`,
             product,
             variant,
             quantity,
           };
-
-          return { items: [...state.items, newItem] };
-        });
+          set({ items: [...items, newItem] });
+        }
       },
 
       removeItem: (itemId) => {
-        set((state) => ({
-          items: state.items.filter((item) => item.id !== itemId),
-        }));
+        set({ items: get().items.filter((item) => item.id !== itemId) });
       },
 
       updateQuantity: (itemId, quantity) => {
-        if (quantity <= 0) {
+        if (quantity < 1) {
           get().removeItem(itemId);
           return;
         }
-
-        set((state) => ({
-          items: state.items.map((item) =>
+        set({
+          items: get().items.map((item) =>
             item.id === itemId ? { ...item, quantity } : item
           ),
-        }));
+        });
       },
 
       clearCart: () => {
         set({ items: [] });
       },
 
-      getTotalItems: () => {
+      getItemCount: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0);
       },
 
@@ -83,21 +119,16 @@ export const useCartStore = create<CartStore>()(
 
       getShipping: () => {
         const subtotal = get().getSubtotal();
-        // Free shipping over $100
-        return subtotal > 100 ? 0 : 9.99;
+        return subtotal >= 100 ? 0 : 10;
       },
 
       getTax: () => {
         const subtotal = get().getSubtotal();
-        // 8.5% tax rate
-        return subtotal * 0.085;
+        return subtotal * 0.08; // 8% tax
       },
 
       getTotalPrice: () => {
-        const subtotal = get().getSubtotal();
-        const shipping = get().getShipping();
-        const tax = get().getTax();
-        return subtotal + shipping + tax;
+        return get().getSubtotal() + get().getShipping() + get().getTax();
       },
     }),
     {

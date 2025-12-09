@@ -80,6 +80,7 @@ export default function AddProductPage() {
     if (imageUrls.filter((url) => url.trim()).length === 0)
       newErrors.images = 'At least one product image is required';
     if (selectedSizes.length === 0) newErrors.sizes = 'Select at least one size';
+    if (selectedColors.length === 0) newErrors.colors = 'Select at least one color';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -96,8 +97,12 @@ export default function AddProductPage() {
     setIsSubmitting(true);
 
     setTimeout(() => {
+      const productId = `prod-${Date.now()}`;
+      const timestamp = new Date().toISOString();
+      
+      // Create the product
       const newProduct = {
-        id: `prod-${Date.now()}`,
+        id: productId,
         name: formData.name,
         slug: generateSlug(formData.name),
         brand: formData.brand,
@@ -105,26 +110,62 @@ export default function AddProductPage() {
         description: formData.description,
         base_price: Number(formData.basePrice),
         compare_price: formData.comparePrice ? Number(formData.comparePrice) : undefined,
-        sku: formData.sku,
-        inventory_count: Number(formData.inventory),
+        is_active: true,
+        rating: 4.5,
+        reviews_count: 0,
         images: imageUrls.filter((url) => url.trim()).map((url, index) => ({
-          id: `img-${Date.now()}-${index}`,
-          product_id: `prod-${Date.now()}`,
+          id: `${productId}-img-${index + 1}`,
+          product_id: productId,
           url: url,
           alt: `${formData.name} - Image ${index + 1}`,
           position: index + 1,
         })),
-        is_active: true,
-        rating: 4.5,
-        reviews_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: timestamp,
+        updated_at: timestamp,
       };
 
-      const existingProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
-      localStorage.setItem('admin_products', JSON.stringify([...existingProducts, newProduct]));
+      // Create variants for each size and color combination
+      // Create variants for each size and color combination
+      const newVariants = [];
+      // Better inventory distribution
+      const totalVariants = selectedSizes.length * selectedColors.length;
+      let inventoryPerVariant = Math.floor(Number(formData.inventory) / totalVariants);
+      const remainder = Number(formData.inventory) % totalVariants;
+      
+      // Ensure minimum 1 per variant if total inventory allows
+      if (inventoryPerVariant === 0 && Number(formData.inventory) > 0) {
+        inventoryPerVariant = 1;
+      }
+      
+      let variantIndex = 1;
+      for (const size of selectedSizes) {
+        for (const color of selectedColors) {
+          const variantId = `${productId}-v${variantIndex}`;
+          const variantSku = `${formData.sku}-${color.substring(0, 2).toUpperCase()}-${size.replace('.', '')}`;
+          
+          newVariants.push({
+            id: variantId,
+            product_id: productId,
+            sku: variantSku,
+            size: size,
+            color: color,
+            price: Number(formData.basePrice),
+            inventory_count: inventoryPerVariant,
+            is_available: true,
+          });
+          
+          variantIndex++;
+        }
+      }
 
-      toast.success('Product added successfully!');
+      // Save to localStorage
+      const existingProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
+      const existingVariants = JSON.parse(localStorage.getItem('admin_variants') || '[]');
+      
+      localStorage.setItem('admin_products', JSON.stringify([...existingProducts, newProduct]));
+      localStorage.setItem('admin_variants', JSON.stringify([...existingVariants, ...newVariants]));
+
+      toast.success(`Product added successfully with ${newVariants.length} variants!`);
       setIsSubmitting(false);
       router.push('/admin/products');
     }, 1500);
@@ -262,17 +303,18 @@ export default function AddProductPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="SKU"
+                  label="SKU Base"
                   name="sku"
                   value={formData.sku}
                   onChange={handleChange}
                   error={errors.sku}
                   required
-                  placeholder="AM270R-BK-001"
+                  placeholder="AM270R"
+                  helperText="Will be combined with size and color"
                 />
 
                 <Input
-                  label="Stock Quantity"
+                  label="Total Stock Quantity"
                   name="inventory"
                   type="number"
                   value={formData.inventory}
@@ -280,6 +322,7 @@ export default function AddProductPage() {
                   error={errors.inventory}
                   required
                   placeholder="100"
+                  helperText="Will be divided among variants"
                 />
               </div>
             </CardContent>
@@ -331,6 +374,7 @@ export default function AddProductPage() {
                   </button>
                 ))}
               </div>
+              {errors.colors && <p className="mt-2 text-sm text-red-600">{errors.colors}</p>}
             </CardContent>
           </Card>
 
@@ -371,6 +415,24 @@ export default function AddProductPage() {
               {errors.images && <p className="text-sm text-red-600">{errors.images}</p>}
             </CardContent>
           </Card>
+
+          {selectedSizes.length > 0 && selectedColors.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Variants Preview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-neutral-600 mb-2">
+                  {selectedSizes.length} sizes × {selectedColors.length} colors = {selectedSizes.length * selectedColors.length} total variants
+                </p>
+                <p className="text-sm text-neutral-600">
+                  Each variant will have approximately{' '}
+                  {formData.inventory ? Math.floor(Number(formData.inventory) / (selectedSizes.length * selectedColors.length)) : 0}{' '}
+                  items in stock
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex items-center justify-end gap-4">
             <Link href="/admin/dashboard">

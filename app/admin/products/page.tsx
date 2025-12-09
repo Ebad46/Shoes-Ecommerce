@@ -7,21 +7,43 @@ import { Plus, Search, Edit, Trash2, Eye, LogOut, BarChart3, ShoppingBag, Packag
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
-import { sampleProducts } from '@/lib/utils/sample-data';
 import { formatPrice } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
+interface ProductImage {
+  id: string;
+  product_id: string;
+  url: string;
+  alt: string;
+  position: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  brand: string;
+  base_price: number;
+  is_active: boolean;
+  category: string;
+  rating: number;
+  reviews_count: number;
+  images: ProductImage[];
+  created_at: string;
+  updated_at: string;
+}
+
 export default function AdminProductsPage() {
   const router = useRouter();
-  const [products, setProducts] = useState(sampleProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Load products from localStorage only
   useEffect(() => {
-    const adminProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
-    if (adminProducts.length > 0) {
-      setProducts([...sampleProducts, ...adminProducts]);
-    }
+    const allProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
+    setProducts(allProducts);
   }, []);
 
   const handleLogout = () => {
@@ -32,11 +54,17 @@ export default function AdminProductsPage() {
 
   const handleDelete = (productId: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      const adminProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
-      const updatedProducts = adminProducts.filter((p: any) => p.id !== productId);
+      // Remove from products
+      const allProducts = JSON.parse(localStorage.getItem('admin_products') || '[]');
+      const updatedProducts = allProducts.filter((p: Product) => p.id !== productId);
       localStorage.setItem('admin_products', JSON.stringify(updatedProducts));
 
-      setProducts(products.filter((p) => p.id !== productId));
+      // Remove associated variants
+      const allVariants = JSON.parse(localStorage.getItem('admin_variants') || '[]');
+      const updatedVariants = allVariants.filter((v: any) => v.product_id !== productId);
+      localStorage.setItem('admin_variants', JSON.stringify(updatedVariants));
+
+      setProducts(updatedProducts);
       toast.success('Product deleted successfully');
     }
   };
@@ -136,9 +164,10 @@ export default function AdminProductsPage() {
                       <div className="flex gap-6">
                         <div className="relative w-32 h-32 flex-shrink-0 bg-neutral-100 rounded-lg overflow-hidden">
                           <Image
-                            src={product.images[0]?.url}
+                            src={product.images[0]?.url || '/placeholder.png'}
                             alt={product.name}
                             fill
+                            sizes="128px"
                             className="object-cover"
                           />
                         </div>
