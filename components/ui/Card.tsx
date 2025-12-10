@@ -5,16 +5,46 @@ import { cn } from '@/lib/utils';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
+  variant?: 'default' | 'elevated' | 'outlined' | 'subtle';
+  accent?: 'blue' | 'emerald' | 'amber' | 'rose' | 'purple';
 }
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
-  ({ className, hover = false, children, ...props }, ref) => {
+  ({ 
+    className, 
+    hover = false, 
+    variant = 'default',
+    accent,
+    children, 
+    ...props 
+  }, ref) => {
+    const variants = {
+      default: 'bg-white border border-neutral-200 shadow-sm',
+      elevated: 'bg-white border border-neutral-100 shadow-lg',
+      outlined: 'bg-transparent border-2 border-neutral-300',
+      subtle: 'bg-neutral-50 border border-transparent',
+    };
+
+    const accentBorder = {
+      blue: 'hover:border-blue-300',
+      emerald: 'hover:border-emerald-300',
+      amber: 'hover:border-amber-300',
+      rose: 'hover:border-rose-300',
+      purple: 'hover:border-purple-300',
+    };
+
     return (
       <div
         ref={ref}
         className={cn(
-          'bg-white rounded-xl border border-neutral-200',
-          hover && 'transition-all duration-300 hover:shadow-medium hover:border-neutral-300',
+          'rounded-xl transition-all duration-300',
+          variants[variant],
+          hover && [
+            'cursor-pointer',
+            'hover:shadow-xl',
+            accent && accentBorder[accent] || 'hover:border-neutral-300',
+            'hover:scale-[1.02]',
+          ],
           className
         )}
         {...props}
@@ -31,7 +61,7 @@ const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('p-6 pb-3', className)}
+      className={cn('px-6 pt-6 pb-4', className)}
       {...props}
     />
   )
@@ -42,7 +72,10 @@ const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingEleme
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-xl font-semibold text-neutral-900', className)}
+      className={cn(
+        'text-lg font-bold bg-gradient-to-r from-neutral-900 to-neutral-700 bg-clip-text text-transparent',
+        className
+      )}
       {...props}
     />
   )
@@ -53,7 +86,7 @@ const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPara
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-sm text-neutral-500 mt-1', className)}
+      className={cn('text-sm text-neutral-600 mt-2 leading-relaxed', className)}
       {...props}
     />
   )
@@ -62,7 +95,7 @@ CardDescription.displayName = 'CardDescription';
 
 const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
+    <div ref={ref} className={cn('px-6 py-4', className)} {...props} />
   )
 );
 CardContent.displayName = 'CardContent';
@@ -71,7 +104,10 @@ const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex items-center p-6 pt-0', className)}
+      className={cn(
+        'flex items-center justify-end gap-3 px-6 py-4 border-t border-neutral-100',
+        className
+      )}
       {...props}
     />
   )
