@@ -43,8 +43,16 @@ interface CartItem {
   quantity: number;
 }
 
+interface WishlistItem {
+  id: string;
+  product: Product;
+  variant: ProductVariant;
+  addedAt: string;
+}
+
 interface CartStore {
   items: CartItem[];
+  wishlist: WishlistItem[];
   addItem: (product: Product, variant: ProductVariant, quantity?: number) => boolean;
   removeItem: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => boolean;
@@ -57,6 +65,12 @@ interface CartStore {
   validateItem: (itemId: string) => boolean;
   getCartItems: () => CartItem[];
   isEmpty: () => boolean;
+  addToWishlist: (product: Product, variant: ProductVariant) => boolean;
+  removeFromWishlist: (itemId: string) => void;
+  getWishlistCount: () => number;
+  getWishlistItems: () => WishlistItem[];
+  isInWishlist: (productId: string, variantId: string) => boolean;
+  clearWishlist: () => void;
 }
 
 const MAX_QUANTITY_PER_ITEM = 10;
@@ -68,6 +82,7 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      wishlist: [],
 
       /**
        * Add item to cart with validation
@@ -301,15 +316,111 @@ export const useCartStore = create<CartStore>()(
           return true;
         }
       },
+
+      /**
+       * Add item to wishlist
+       * Returns true if successful, false if already in wishlist
+       */
+      addToWishlist: (product, variant) => {
+        try {
+          if (!product?.id || !variant?.id) {
+            console.warn('Invalid product or variant data');
+            return false;
+          }
+
+          const wishlist = get().wishlist;
+          const existingItem = wishlist.find(
+            (item) => item.product.id === product.id && item.variant.id === variant.id
+          );
+
+          if (existingItem) {
+            console.warn('Item already in wishlist');
+            return false;
+          }
+
+          const newWishlistItem: WishlistItem = {
+            id: `${product.id}-${variant.id}`,
+            product,
+            variant,
+            addedAt: new Date().toISOString(),
+          };
+
+          set({ wishlist: [...wishlist, newWishlistItem] });
+          return true;
+        } catch (error) {
+          console.error('Error adding item to wishlist:', error);
+          return false;
+        }
+      },
+
+      /**
+       * Remove item from wishlist
+       */
+      removeFromWishlist: (itemId) => {
+        try {
+          if (!itemId) return;
+          set({ wishlist: get().wishlist.filter((item) => item.id !== itemId) });
+        } catch (error) {
+          console.error('Error removing item from wishlist:', error);
+        }
+      },
+
+      /**
+       * Get wishlist item count
+       */
+      getWishlistCount: () => {
+        try {
+          return get().wishlist.length;
+        } catch (error) {
+          console.error('Error calculating wishlist count:', error);
+          return 0;
+        }
+      },
+
+      /**
+       * Get all wishlist items
+       */
+      getWishlistItems: () => {
+        try {
+          return get().wishlist || [];
+        } catch (error) {
+          console.error('Error getting wishlist items:', error);
+          return [];
+        }
+      },
+
+      /**
+       * Check if item is in wishlist
+       */
+      isInWishlist: (productId, variantId) => {
+        try {
+          if (!productId || !variantId) return false;
+          return get().wishlist.some(
+            (item) => item.product.id === productId && item.variant.id === variantId
+          );
+        } catch (error) {
+          console.error('Error checking wishlist:', error);
+          return false;
+        }
+      },
+
+      /**
+       * Clear all items from wishlist
+       */
+      clearWishlist: () => {
+        try {
+          set({ wishlist: [] });
+        } catch (error) {
+          console.error('Error clearing wishlist:', error);
+        }
+      },
     }),
     {
       name: 'cart-storage',
-      // Optional: Add version tracking for migrations
       version: 1,
-      // Optional: Add migration for future versions
-      migrate: (persistedState: any, version) => {
+      migrate: (persistedState: unknown, version: number): CartStore => {
         if (version === 0) {
-          // Migration logic if needed
+          // Migration logic for version 0 if needed
         }
         return persistedState as CartStore;
       },
